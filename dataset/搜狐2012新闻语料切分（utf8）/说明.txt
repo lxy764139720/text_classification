@@ -1,0 +1,3 @@
+源语料来自搜狗实验室2012年搜狐新闻语料 http://www.sogou.com/labs/resource/cs.php
+
+抽取了11类（11个子文件夹），每个txt文件包含600篇文章，编码均转化为UTF8格式
