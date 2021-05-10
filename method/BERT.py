@@ -20,7 +20,7 @@ dict_path = './chinese_L-12_H-768_A-12/vocab.txt'
 texts = []
 labels_index = {u'健康': 0, u'教育': 1, u'财经': 2}
 labels = []
-TEXT_PATH = '..\preprocessing'
+TEXT_PATH = '../preprocessing'
 for name in os.listdir(TEXT_PATH):
     if name.split('.')[-1] == 'txt':
         class_name = name.split('.')[0]
@@ -68,31 +68,33 @@ from keras.callbacks import TensorBoard, EarlyStopping, ModelCheckpoint
 from keras import backend as K
 
 
-def recall_m(y_true, y_pred):
-    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+def evaluate(data):
+    total, right, true_positives, possible_positives, predicted_positives = 0., 0., 0., 0., 0.
+    for x_true, y_true in data:
+        y_pred = model.predict(x_true).argmax(axis=1)
+        y_true = y_true[:, 0]
+        right += (y_true == y_pred).sum()
+        true_positives += K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        possible_positives += K.sum(K.round(K.clip(y_true, 0, 1)))
+        predicted_positives += K.sum(K.round(K.clip(y_pred, 0, 1)))
+        total += len(y_true)
+    accuracy = right / total
     recall = true_positives / (possible_positives + K.epsilon())
-    return recall
-
-
-def precision_m(y_true, y_pred):
-    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
     precision = true_positives / (predicted_positives + K.epsilon())
-    return precision
+    f1_score = 2 * ((precision * recall) / (precision + recall + K.epsilon()))
+    return accuracy, recall, precision, f1_score
 
 
-def f1_m(y_true, y_pred):
-    precision = precision_m(y_true, y_pred)
-    recall = recall_m(y_true, y_pred)
-    return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
+class Evaluator(keras.callbacks.Callback):
+    """评估与保存"""
 
+    def on_epoch_end(self, epoch, logs=None):
+        val_acc, val_recall, val_precision, val_f1 = evaluate(test_generator)
+        print(u'val_acc: %.5f\n' % val_acc)
+        print(u'val_recall: %.5f\n' % val_recall)
+        print(u'val_precision: %.5f\n' % val_precision)
+        print(u'val_f1: %.5f\n' % val_f1)
 
-my_callbacks = [
-    EarlyStopping(patience=5),
-    TensorBoard(log_dir='./logs'),
-    ModelCheckpoint('BERT.h5', monitor='val_acc', save_best_only=True, mode='auto'),
-]
 
 # 加载预训练模型
 bert = build_transformer_model(
@@ -110,8 +112,17 @@ model.summary()
 model.compile(
     loss='sparse_categorical_crossentropy',
     optimizer=Adam(2e-5),
-    metrics=['accuracy', f1_m, precision_m, recall_m],
+    metrics=['sparse_categorical_accuracy'],
 )
+
+evaluator = Evaluator()
+
+my_callbacks = [
+    EarlyStopping(patience=5),
+    TensorBoard(log_dir='./logs'),
+    evaluator,
+    ModelCheckpoint('BERT.h5', monitor='val_acc', save_best_only=True, mode='auto'),
+]
 
 model.fit(
     train_generator.forfit(),
