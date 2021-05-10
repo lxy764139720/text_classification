@@ -74,9 +74,9 @@ def evaluate(data):
         y_pred = model.predict(x_true).argmax(axis=1)
         y_true = y_true[:, 0]
         right += (y_true == y_pred).sum()
-        true_positives += K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-        possible_positives += K.sum(K.round(K.clip(y_true, 0, 1)))
-        predicted_positives += K.sum(K.round(K.clip(y_pred, 0, 1)))
+        true_positives += K.sum(K.round(K.clip(y_true * y_pred, 0, 1))).numpy()
+        possible_positives += K.sum(K.round(K.clip(y_true, 0, 1))).numpy()
+        predicted_positives += K.sum(K.round(K.clip(y_pred, 0, 1))).numpy()
         total += len(y_true)
     accuracy = right / total
     recall = true_positives / (possible_positives + K.epsilon())
@@ -87,10 +87,14 @@ def evaluate(data):
 
 class Evaluator(keras.callbacks.Callback):
     """评估与保存"""
+    def __init__(self):
+        self.best_val_acc = 0.
 
     def on_epoch_end(self, epoch, logs=None):
         val_acc, val_recall, val_precision, val_f1 = evaluate(test_generator)
-        print(u'val_acc: %.5f\n' % val_acc)
+        if val_acc > self.best_val_acc:
+            self.best_val_acc = val_acc
+        print(u'val_acc: %.5f, best_val_acc: %.5f\n' % (val_acc, self.best_val_acc))
         print(u'val_recall: %.5f\n' % val_recall)
         print(u'val_precision: %.5f\n' % val_precision)
         print(u'val_f1: %.5f\n' % val_f1)
