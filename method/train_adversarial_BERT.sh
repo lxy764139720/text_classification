@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=train_bert_1
+#SBATCH --job-name=train_adversarial_bert_1
 #SBATCH --output=test.out.%j
 #SBATCH --error=vasp.err.%j
 #SBATCH --partition=gpu4Q
@@ -9,4 +9,4 @@
 #SBATCH --qos=gpuq
 
 source activate tf2.2
-python BERT.py
+python adversarial_BERT.py
